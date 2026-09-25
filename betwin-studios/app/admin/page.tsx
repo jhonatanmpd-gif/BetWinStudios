@@ -18,7 +18,7 @@ export default function Admin(){
    fetch("/api/admin/stats"),fetch("/api/admin/users?q="+encodeURIComponent(q)),fetch("/api/admin/transactions"),
    fetch("/api/admin/payments?take=100"),fetch("/api/admin/settlements")
   ]);
-  if(a.ok)setStats((await a.json()).stats); else if(a.status===401){location.href="/login";return}
+  if(a.ok)setStats((await a.json()).stats); else setStats(null);
   if(b.ok)setUsers((await b.json()).users||[]); if(c.ok)setTx((await c.json()).transactions||[]);
   if(d.ok)setPayments((await d.json()).payments||[]); if(e.ok)setSettlements((await e.json()).settlements||[]);
   setLoading(false);
@@ -33,6 +33,7 @@ export default function Admin(){
  return <main className="container-page py-8 sm:py-10">
   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-gold">BETWIN STUDIOS • Administração</p><h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">Central de controle</h1><p className="mt-2 text-sm text-ink-muted">Gestão de jogadores, pagamentos, carteiras, jogos e liquidações.</p></div><button onClick={logout} className="rounded-xl border border-base-line px-4 py-2.5 text-sm font-semibold">Sair</button></div>
   {msg&&<div className="mt-5 rounded-xl border border-gold/30 bg-gold/10 p-3 text-sm text-gold">{msg}</div>}
+  {!loading&&!stats&&<div className="mt-5 rounded-xl border border-base-line bg-base-surface p-4 text-sm text-ink-muted">Você precisa estar logado como administrador para ver os dados. Se ainda não existe nenhum admin, clique em "Administrador inicial" abaixo para criar o primeiro.</div>}
   <div className="mt-5 flex flex-wrap justify-end gap-2"><button onClick={()=>setSetupVisible(!setupVisible)} className="rounded-xl border border-base-line px-4 py-2 text-sm font-semibold">Administrador inicial</button><button onClick={requestSettlement} className="rounded-xl bg-gold px-4 py-2 text-sm font-bold text-base">Solicitar liquidação</button></div>
   {setupVisible&&<form onSubmit={bootstrap} className="mt-4 grid gap-3 rounded-2xl border border-gold/30 bg-gold/5 p-5 md:grid-cols-4"><input placeholder="Chave de configuração" value={setup.setupKey} onChange={e=>setSetup({...setup,setupKey:e.target.value})} className="rounded-xl border border-base-line bg-base px-3 py-2 text-sm"/><input placeholder="E-mail admin" value={setup.email} onChange={e=>setSetup({...setup,email:e.target.value})} className="rounded-xl border border-base-line bg-base px-3 py-2 text-sm"/><input placeholder="Senha (10+ caracteres)" type="password" value={setup.password} onChange={e=>setSetup({...setup,password:e.target.value})} className="rounded-xl border border-base-line bg-base px-3 py-2 text-sm"/><button className="rounded-xl bg-gold px-4 py-2 font-bold text-base">Criar administrador</button></form>}
   <div className="mt-7 flex gap-2 overflow-x-auto border-b border-base-line">{tabs.map(([id,label])=><button key={id} onClick={()=>setTab(id)} className={`whitespace-nowrap px-4 py-3 text-sm font-semibold ${tab===id?"border-b-2 border-gold text-gold":"text-ink-muted"}`}>{label}</button>)}</div>
