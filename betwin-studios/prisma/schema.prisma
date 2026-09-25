@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  BET
+  WIN
+  REFUND
+  ADJUSTMENT
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+  EXPIRED
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  username       String?         @unique
+  passwordHash   String
+  role           UserRole        @default(USER)
+  status         UserStatus      @default(ACTIVE)
+  lastLoginAt    DateTime?
+  displayName    String?
+  providerToken  String?         @unique
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  wallet         Wallet?
+  transactions   Transaction[]
+  sessions       GameSession[]
+  favorites      Favorite[]
+  payments       PaymentIntent[]
+  adminActions   AdminAudit[]    @relation("AdminActor")
+  auditTarget    AdminAudit[]    @relation("AuditTarget")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Decimal  @default(0) @db.Decimal(18, 2)
+  currency  String   @default("BRL")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GameSession {
+  id              String        @id @default(cuid())
+  userId          String?
+  gameId          Int
+  provider        String?
+  externalSession String?       @unique
+  launchUrl       String?
+  status          String        @default("OPEN")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  transactions    Transaction[]
+  @@index([userId, createdAt])
+  @@index([gameId, createdAt])
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  userId        String
+  gameSessionId String?
+  externalId    String?           @unique
+  type          TransactionType
+  status        TransactionStatus @default(PENDING)
+  amount        Decimal           @db.Decimal(18, 2)
+  currency      String            @default("BRL")
+  balanceBefore Decimal?          @db.Decimal(18, 2)
+  balanceAfter  Decimal?          @db.Decimal(18, 2)
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameSession   GameSession?      @relation(fields: [gameSessionId], references: [id], onDelete: SetNull)
+  @@index([userId, createdAt])
+  @@index([type, status])
+}
+
+model PaymentIntent {
+  id              String        @id @default(cuid())
+  userId          String
+  provider        String        @default("PENDING_GATEWAY")
+  externalId      String?       @unique
+  type            TransactionType @default(DEPOSIT)
+  status          PaymentStatus @default(PENDING)
+  amount          Decimal       @db.Decimal(18, 2)
+  currency        String        @default("BRL")
+  checkoutUrl     String?
+  pixCopyPaste    String?
+  expiresAt       DateTime?
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@index([status, type])
+}
+
+model AdminAudit {
+  id         String   @id @default(cuid())
+  adminId    String
+  targetId   String?
+  action     String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  admin      User     @relation("AdminActor", fields: [adminId], references: [id], onDelete: Cascade)
+  target     User?    @relation("AuditTarget", fields: [targetId], references: [id], onDelete: SetNull)
+  @@index([adminId, createdAt])
+  @@index([targetId, createdAt])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  gameId    Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, gameId])
+  @@index([gameId])
+}
+
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+model PlatformSettlement {
+  id          String           @id @default(cuid())
+  provider    String           @default("PENDING_GATEWAY")
+  externalId  String?          @unique
+  amount      Decimal          @db.Decimal(18, 2)
+  currency    String           @default("BRL")
+  status      SettlementStatus @default(PENDING)
+  destination String?
+  metadata    Json?
+  requestedBy String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  @@index([status, createdAt])
+}
